@@ -1,13 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".ChatFragment">
 
    <androidx.recyclerview.widget.RecyclerView
+       android:id="@+id/recyclerview"
        android:layout_width="match_parent"
-       android:layout_height="wrap_content"
-       android:id="@+id/recyler_view"/>
+       android:layout_height="match_parent"
+       android:layout_margin="10dp" />
 
-</RelativeLayout>
+   <com.google.android.material.floatingactionbutton.FloatingActionButton
+       android:id="@+id/new_group_btn"
+       android:layout_width="wrap_content"
+       android:layout_height="wrap_content"
+       android:layout_gravity="bottom|end"
+       android:layout_margin="16dp"
+       android:src="@drawable/ic_add_group"
+       app:tint="@color/white"
+       android:backgroundTint="@color/my_primary"/>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

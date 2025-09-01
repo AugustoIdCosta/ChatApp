@@ -1,5 +1,8 @@
 package com.example.easychat.utils;
 
+import android.content.Intent;
+
+import com.example.easychat.model.ChatroomModel;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.CollectionReference;
@@ -61,11 +64,22 @@ public class FirebaseUtil {
     }
 
     public static String timestampToString(Timestamp timestamp){
+        if (timestamp == null) {
+            return ""; // Retorna uma string vazia se o timestamp for nulo
+        }
         return new SimpleDateFormat("HH:MM").format(timestamp.toDate());
     }
 
     public static void logout(){
         FirebaseAuth.getInstance().signOut();
+    }
+    public static StorageReference getChatImageStorageRef(String chatroomId, String fileName) {
+        // Garante que o caminho seja válido
+        if (chatroomId == null || chatroomId.isEmpty()) {
+            chatroomId = "default";
+        }
+        return FirebaseStorage.getInstance().getReference().child("chat_media")
+                .child(chatroomId).child(fileName);
     }
 
     public static StorageReference  getCurrentProfilePicStorageRef(){
@@ -76,6 +90,17 @@ public class FirebaseUtil {
     public static StorageReference  getOtherProfilePicStorageRef(String otherUserId){
         return FirebaseStorage.getInstance().getReference().child("profile_pic")
                 .child(otherUserId);
+    }
+    public static StorageReference  getGroupIconStorageRef(String chatroomId){
+        return FirebaseStorage.getInstance().getReference().child("group_icons")
+                .child(chatroomId);
+    }
+    public static void passChatroomModelAsIntent(Intent intent, ChatroomModel model){
+        intent.putExtra("chatroom_model", model);
+    }
+
+    public static ChatroomModel getChatroomModelFromIntent(Intent intent){
+        return (ChatroomModel) intent.getSerializableExtra("chatroom_model");
     }
 
 

@@ -15,6 +15,7 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationBarView;
 import com.google.firebase.messaging.FirebaseMessaging;
+import com.example.easychat.LocalNotificationService;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -23,6 +24,7 @@ public class MainActivity extends AppCompatActivity {
 
     ChatFragment chatFragment;
     ProfileFragment profileFragment;
+    LocalNotificationService notificationService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +56,9 @@ public class MainActivity extends AppCompatActivity {
         bottomNavigationView.setSelectedItemId(R.id.menu_chat);
 
         getFCMToken();
+        
+        // Inicializa e inicia o serviço de notificações locais
+        startLocalNotificationService();
 
     }
 
@@ -65,6 +70,22 @@ public class MainActivity extends AppCompatActivity {
 
                 }
         });
+    }
+    
+    void startLocalNotificationService() {
+        if (FirebaseUtil.isLoggedIn()) {
+            notificationService = new LocalNotificationService(this);
+            notificationService.startListeningForMessages(FirebaseUtil.currentUserId());
+            Log.d("MainActivity", "Serviço de notificações locais iniciado");
+        }
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (notificationService != null) {
+            notificationService.stopListening();
+        }
     }
 }
 

@@ -7,11 +7,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 
 import com.example.easychat.ChatActivity;
 import com.example.easychat.R;
@@ -21,40 +21,86 @@ import com.example.easychat.utils.AndroidUtil;
 import com.example.easychat.utils.FirebaseUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.firestore.DocumentSnapshot;
 
 public class RecentChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatroomModel, RecentChatRecyclerAdapter.ChatroomModelViewHolder> {
 
     Context context;
 
-    public RecentChatRecyclerAdapter(@NonNull FirestoreRecyclerOptions<ChatroomModel> options,Context context) {
+    public RecentChatRecyclerAdapter(@NonNull FirestoreRecyclerOptions<ChatroomModel> options, Context context) {
         super(options);
         this.context = context;
     }
 
     @Override
     protected void onBindViewHolder(@NonNull ChatroomModelViewHolder holder, int position, @NonNull ChatroomModel model) {
-        FirebaseUtil.getOtherUserFromChatroom(model.getUserIds())
-                .get().addOnCompleteListener(task -> {
-                        if(task.isSuccessful()){
+
+        /*** Gemini - Inicio***/
+        if (model.isGroupChat()) {
+            // LÓGICA PARA GRUPO
+            holder.usernameText.setText(model.getGroupName());
+
+            // Define o ícone do grupo (se houver)
+            if (model.getGroupIcon() != null) {
+                FirebaseUtil.getGroupIconStorageRef(model.getGroupIcon()).getDownloadUrl()
+                        .addOnCompleteListener(t -> {
+                            if (t.isSuccessful()) {
+                                Uri uri = t.getResult();
+                                AndroidUtil.setProfilePic(context, uri, holder.profilePic);
+                            }
+                        });
+            }
+
+            // Lógica da última mensagem para grupos
+            if(model.getLastMessageSenderId() != null && !model.getLastMessageSenderId().isEmpty()){
+                if (model.getLastMessageSenderId().equals(FirebaseUtil.currentUserId())) {
+                    holder.lastMessageText.setText("Você: " + model.getLastMessage());
+                } else {
+                    // Busca o nome de quem enviou a última mensagem
+                    FirebaseUtil.allUserCollectionReference().document(model.getLastMessageSenderId()).get()
+                            .addOnCompleteListener(task -> {
+                                if(task.isSuccessful()){
+                                    UserModel sender = task.getResult().toObject(UserModel.class);
+                                    if(sender != null){
+                                        holder.lastMessageText.setText(sender.getUsername() + ": " + model.getLastMessage());
+                                    }
+                                }
+                            });
+                }
+            } else {
+                holder.lastMessageText.setText("Toque para conversar");
+            }
+
+
+            holder.lastMessageTime.setText(FirebaseUtil.timestampToString(model.getLastMessageTimestamp()));
+
+            holder.itemView.setOnClickListener(v -> {
+                // Navegar para a ChatActivity (lógica para grupo)
+                Intent intent = new Intent(context, ChatActivity.class);
+                // Para grupos, passamos o próprio ChatroomModel
+                AndroidUtil.passChatroomModelAsIntent(intent, model);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+            });
+
+        } else {
+            // LÓGICA PARA CHAT 1-PARA-1 (CÓDIGO ORIGINAL)
+            FirebaseUtil.getOtherUserFromChatroom(model.getUserIds())
+                    .get().addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
                             boolean lastMessageSentByMe = model.getLastMessageSenderId().equals(FirebaseUtil.currentUserId());
-
-
                             UserModel otherUserModel = task.getResult().toObject(UserModel.class);
 
                             FirebaseUtil.getOtherProfilePicStorageRef(otherUserModel.getUserId()).getDownloadUrl()
                                     .addOnCompleteListener(t -> {
-                                        if(t.isSuccessful()){
-                                            Uri uri  = t.getResult();
-                                            AndroidUtil.setProfilePic(context,uri,holder.profilePic);
+                                        if (t.isSuccessful()) {
+                                            Uri uri = t.getResult();
+                                            AndroidUtil.setProfilePic(context, uri, holder.profilePic);
                                         }
                                     });
 
                             holder.usernameText.setText(otherUserModel.getUsername());
-                            if(lastMessageSentByMe)
-                                holder.lastMessageText.setText("You : "+model.getLastMessage());
+                            if (lastMessageSentByMe)
+                                holder.lastMessageText.setText("Você: " + model.getLastMessage());
                             else
                                 holder.lastMessageText.setText(model.getLastMessage());
                             holder.lastMessageTime.setText(FirebaseUtil.timestampToString(model.getLastMessageTimestamp()));
@@ -62,23 +108,24 @@ public class RecentChatRecyclerAdapter extends FirestoreRecyclerAdapter<Chatroom
                             holder.itemView.setOnClickListener(v -> {
                                 //navigate to chat activity
                                 Intent intent = new Intent(context, ChatActivity.class);
-                                AndroidUtil.passUserModelAsIntent(intent,otherUserModel);
+                                AndroidUtil.passUserModelAsIntent(intent, otherUserModel);
                                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                                 context.startActivity(intent);
                             });
-
                         }
-                });
+                    });
+        }
+        /***gemini - fim***/
     }
 
     @NonNull
     @Override
     public ChatroomModelViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context).inflate(R.layout.recent_chat_recycler_row,parent,false);
+        View view = LayoutInflater.from(context).inflate(R.layout.recent_chat_recycler_row, parent, false);
         return new ChatroomModelViewHolder(view);
     }
 
-    class ChatroomModelViewHolder extends RecyclerView.ViewHolder{
+    class ChatroomModelViewHolder extends RecyclerView.ViewHolder {
         TextView usernameText;
         TextView lastMessageText;
         TextView lastMessageTime;

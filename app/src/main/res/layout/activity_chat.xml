@@ -41,7 +41,16 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             app:tint="@color/white"
             android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
             android:id="@+id/back_btn"/>
+        <ImageButton
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:id="@+id/attach_file_btn"
+            android:src="@drawable/ic_attach_file"
+            android:layout_centerVertical="true"
+            android:layout_alignParentEnd="true"
+            android:background="?attr/selectableItemBackgroundBorderless"/>
 
     </RelativeLayout>
 

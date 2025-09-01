@@ -2,10 +2,12 @@ package com.example.easychat.model;
 
 import com.google.firebase.Timestamp;
 
-public class UserModel {
+import java.io.Serializable;
+
+public class UserModel implements Serializable {
     private String phone;
     private String username;
-    private Timestamp createdTimestamp;
+    private transient Timestamp createdTimestamp;
     private String userId;
     private String fcmToken;
 

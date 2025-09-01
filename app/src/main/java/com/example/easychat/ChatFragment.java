@@ -1,5 +1,6 @@
 package com.example.easychat;
 
+import android.content.Intent;
 import android.os.Bundle;
 
 import androidx.fragment.app.Fragment;
@@ -9,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 
 import com.example.easychat.adapter.RecentChatRecyclerAdapter;
 import com.example.easychat.adapter.SearchUserRecyclerAdapter;
@@ -22,6 +24,7 @@ public class ChatFragment extends Fragment {
 
     RecyclerView recyclerView;
     RecentChatRecyclerAdapter adapter;
+    ImageButton newGroupBtn;
 
 
     public ChatFragment() {
@@ -30,7 +33,13 @@ public class ChatFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view =  inflater.inflate(R.layout.fragment_chat, container, false);
-        recyclerView = view.findViewById(R.id.recyler_view);
+        recyclerView = view.findViewById(R.id.recyclerview);
+        newGroupBtn = view.findViewById(R.id.new_group_btn);
+
+        newGroupBtn.setOnClickListener(v -> {
+            // Inicia a nova atividade para selecionar membros
+            startActivity(new Intent(getContext(), SelectMembersActivity.class));
+        });
         setupRecyclerView();
 
         return view;
