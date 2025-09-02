@@ -84,36 +84,65 @@ public class RecentChatRecyclerAdapter extends FirestoreRecyclerAdapter<Chatroom
 
         } else {
             // LÓGICA PARA CHAT 1-PARA-1 (CÓDIGO ORIGINAL)
-            FirebaseUtil.getOtherUserFromChatroom(model.getUserIds())
-                    .get().addOnCompleteListener(task -> {
-                        if (task.isSuccessful()) {
-                            boolean lastMessageSentByMe = model.getLastMessageSenderId().equals(FirebaseUtil.currentUserId());
-                            UserModel otherUserModel = task.getResult().toObject(UserModel.class);
+            if (model.getUserIds() != null && !model.getUserIds().isEmpty()) {
+                FirebaseUtil.getOtherUserFromChatroom(model.getUserIds())
+                        .get().addOnCompleteListener(task -> {
+                            if (task.isSuccessful() && task.getResult() != null) {
+                                UserModel otherUserModel = task.getResult().toObject(UserModel.class);
 
-                            FirebaseUtil.getOtherProfilePicStorageRef(otherUserModel.getUserId()).getDownloadUrl()
-                                    .addOnCompleteListener(t -> {
-                                        if (t.isSuccessful()) {
-                                            Uri uri = t.getResult();
-                                            AndroidUtil.setProfilePic(context, uri, holder.profilePic);
+                                if (otherUserModel != null && otherUserModel.getUserId() != null) {
+                                    // Verifica se há última mensagem antes de acessar
+                                    if (model.getLastMessageSenderId() != null && !model.getLastMessageSenderId().isEmpty()) {
+                                        boolean lastMessageSentByMe = model.getLastMessageSenderId().equals(FirebaseUtil.currentUserId());
+
+                                        if (lastMessageSentByMe) {
+                                            holder.lastMessageText.setText("Você: " + (model.getLastMessage() != null ? model.getLastMessage() : ""));
+                                        } else {
+                                            holder.lastMessageText.setText(model.getLastMessage() != null ? model.getLastMessage() : "");
+                                        }
+                                    } else {
+                                        holder.lastMessageText.setText("Toque para conversar");
+                                    }
+
+                                    FirebaseUtil.getOtherProfilePicStorageRef(otherUserModel.getUserId()).getDownloadUrl()
+                                            .addOnCompleteListener(t -> {
+                                                if (t.isSuccessful()) {
+                                                    Uri uri = t.getResult();
+                                                    AndroidUtil.setProfilePic(context, uri, holder.profilePic);
+                                                }
+                                            });
+
+                                    holder.usernameText.setText(otherUserModel.getUsername());
+                                    holder.lastMessageTime.setText(FirebaseUtil.timestampToString(model.getLastMessageTimestamp()));
+
+                                    holder.itemView.setOnClickListener(v -> {
+                                        try {
+                                            //navigate to chat activity
+                                            Intent intent = new Intent(context, ChatActivity.class);
+                                            AndroidUtil.passUserModelAsIntent(intent, otherUserModel);
+                                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                            context.startActivity(intent);
+                                        } catch (Exception e) {
+                                            android.util.Log.e("RecentChatAdapter", "Erro ao abrir chat: " + e.getMessage());
+                                            android.widget.Toast.makeText(context, "Erro ao abrir chat", android.widget.Toast.LENGTH_SHORT).show();
                                         }
                                     });
-
-                            holder.usernameText.setText(otherUserModel.getUsername());
-                            if (lastMessageSentByMe)
-                                holder.lastMessageText.setText("Você: " + model.getLastMessage());
-                            else
-                                holder.lastMessageText.setText(model.getLastMessage());
-                            holder.lastMessageTime.setText(FirebaseUtil.timestampToString(model.getLastMessageTimestamp()));
-
-                            holder.itemView.setOnClickListener(v -> {
-                                //navigate to chat activity
-                                Intent intent = new Intent(context, ChatActivity.class);
-                                AndroidUtil.passUserModelAsIntent(intent, otherUserModel);
-                                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                context.startActivity(intent);
-                            });
-                        }
-                    });
+                                } else {
+                                    holder.usernameText.setText("Usuário não encontrado");
+                                    holder.lastMessageText.setText("Erro ao carregar dados");
+                                    holder.lastMessageTime.setText("");
+                                }
+                            } else {
+                                holder.usernameText.setText("Erro ao carregar");
+                                holder.lastMessageText.setText("Falha na conexão");
+                                holder.lastMessageTime.setText("");
+                            }
+                        });
+            } else {
+                holder.usernameText.setText("Erro: IDs inválidos");
+                holder.lastMessageText.setText("Dados corrompidos");
+                holder.lastMessageTime.setText("");
+            }
         }
         /***gemini - fim***/
     }

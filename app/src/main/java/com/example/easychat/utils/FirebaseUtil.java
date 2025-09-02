@@ -17,14 +17,22 @@ import java.util.List;
 public class FirebaseUtil {
 
     public static String currentUserId(){
-        return FirebaseAuth.getInstance().getUid();
+        try {
+            return FirebaseAuth.getInstance().getUid();
+        } catch (Exception e) {
+            android.util.Log.e("FirebaseUtil", "Erro ao obter currentUserId: " + e.getMessage());
+            return null;
+        }
     }
 
     public static boolean isLoggedIn(){
-        if(currentUserId()!=null){
-            return true;
+        try {
+            String userId = currentUserId();
+            return userId != null && !userId.isEmpty();
+        } catch (Exception e) {
+            android.util.Log.e("FirebaseUtil", "Erro ao verificar login: " + e.getMessage());
+            return false;
         }
-        return false;
     }
 
     public static DocumentReference currentUserDetails(){
@@ -44,10 +52,19 @@ public class FirebaseUtil {
     }
 
     public static String getChatroomId(String userId1,String userId2){
-        if(userId1.hashCode()<userId2.hashCode()){
-            return userId1+"_"+userId2;
-        }else{
-            return userId2+"_"+userId1;
+        try {
+            if(userId1 == null || userId2 == null || userId1.isEmpty() || userId2.isEmpty()){
+                return null;
+            }
+            
+            if(userId1.hashCode()<userId2.hashCode()){
+                return userId1+"_"+userId2;
+            }else{
+                return userId2+"_"+userId1;
+            }
+        } catch (Exception e) {
+            android.util.Log.e("FirebaseUtil", "Erro ao gerar chatroomId: " + e.getMessage());
+            return null;
         }
     }
 
@@ -56,7 +73,16 @@ public class FirebaseUtil {
     }
 
     public static DocumentReference getOtherUserFromChatroom(List<String> userIds){
-        if(userIds.get(0).equals(FirebaseUtil.currentUserId())){
+        if(userIds == null || userIds.size() < 2){
+            return null;
+        }
+        
+        String currentUserId = currentUserId();
+        if(currentUserId == null){
+            return null;
+        }
+        
+        if(userIds.get(0).equals(currentUserId)){
             return allUserCollectionReference().document(userIds.get(1));
         }else{
             return allUserCollectionReference().document(userIds.get(0));
@@ -64,10 +90,15 @@ public class FirebaseUtil {
     }
 
     public static String timestampToString(Timestamp timestamp){
-        if (timestamp == null) {
-            return ""; // Retorna uma string vazia se o timestamp for nulo
+        try {
+            if (timestamp == null) {
+                return ""; // Retorna uma string vazia se o timestamp for nulo
+            }
+            return new SimpleDateFormat("HH:MM").format(timestamp.toDate());
+        } catch (Exception e) {
+            android.util.Log.e("FirebaseUtil", "Erro ao converter timestamp: " + e.getMessage());
+            return "";
         }
-        return new SimpleDateFormat("HH:MM").format(timestamp.toDate());
     }
 
     public static void logout(){
@@ -100,7 +131,15 @@ public class FirebaseUtil {
     }
 
     public static ChatroomModel getChatroomModelFromIntent(Intent intent){
-        return (ChatroomModel) intent.getSerializableExtra("chatroom_model");
+        try {
+            if(intent == null){
+                return null;
+            }
+            return (ChatroomModel) intent.getSerializableExtra("chatroom_model");
+        } catch (Exception e) {
+            android.util.Log.e("FirebaseUtil", "Erro ao obter ChatroomModel do Intent: " + e.getMessage());
+            return null;
+        }
     }
 
 

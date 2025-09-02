@@ -71,80 +71,107 @@ public class ChatActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
 
-        // Inicializa o launcher para pegar a imagem da galeria
-        imagePickerLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    if (result.getResultCode() == Activity.RESULT_OK) {
-                        Intent data = result.getData();
-                        if (data != null && data.getData() != null) {
-                            selectedImageUri = data.getData();
-                            sendMessageWithImage(selectedImageUri);
-                        }
-                    }
-                }
-        );
+        try {
+            Log.d("ChatActivity", "onCreate iniciado");
 
-        /*** Gemini - Inicio - Inicialização das Views que faltavam***/
-        messageInput = findViewById(R.id.chat_message_input);
-        sendMessageBtn = findViewById(R.id.message_send_btn);
-        backBtn = findViewById(R.id.back_btn);
-        otherUsername = findViewById(R.id.other_username);
-        recyclerView = findViewById(R.id.chat_recycler_view);
-        imageView = findViewById(R.id.profile_pic_image_view);
-        attachFileBtn = findViewById(R.id.attach_file_btn);
-        /***gemini - fim***/
-
-        backBtn.setOnClickListener((v) -> {
-            onBackPressed();
-        });
-
-        // Lógica para diferenciar chat de grupo e individual
-        chatroomModel = AndroidUtil.getChatroomModelFromIntent(getIntent());
-
-        if (chatroomModel != null && chatroomModel.isGroupChat()) {
-            // É UM GRUPO
-            chatroomId = chatroomModel.getChatroomId();
-            otherUsername.setText(chatroomModel.getGroupName());
-
-            if(chatroomModel.getGroupIcon() != null){
-                FirebaseUtil.getGroupIconStorageRef(chatroomModel.getChatroomId()).getDownloadUrl()
-                        .addOnCompleteListener(t -> {
-                            if (t.isSuccessful()) {
-                                Uri uri = t.getResult();
-                                AndroidUtil.setProfilePic(this, uri, imageView);
+            // Inicializa o launcher para pegar a imagem da galeria
+            imagePickerLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+                    result -> {
+                        if (result.getResultCode() == Activity.RESULT_OK) {
+                            Intent data = result.getData();
+                            if (data != null && data.getData() != null) {
+                                selectedImageUri = data.getData();
+                                sendMessageWithImage(selectedImageUri);
                             }
-                        });
-            }
-        } else {
-            // É UM CHAT 1-PARA-1
-            otherUser = AndroidUtil.getUserModelFromIntent(getIntent());
-            chatroomId = FirebaseUtil.getChatroomId(FirebaseUtil.currentUserId(), otherUser.getUserId());
-            otherUsername.setText(otherUser.getUsername());
-
-            FirebaseUtil.getOtherProfilePicStorageRef(otherUser.getUserId()).getDownloadUrl()
-                    .addOnCompleteListener(t -> {
-                        if (t.isSuccessful()) {
-                            Uri uri = t.getResult();
-                            AndroidUtil.setProfilePic(this, uri, imageView);
                         }
                     });
+
+            /*** Gemini - Inicio - Inicialização das Views que faltavam***/
+            messageInput = findViewById(R.id.chat_message_input);
+            sendMessageBtn = findViewById(R.id.message_send_btn);
+            backBtn = findViewById(R.id.back_btn);
+            otherUsername = findViewById(R.id.other_username);
+            recyclerView = findViewById(R.id.chat_recycler_view);
+            imageView = findViewById(R.id.profile_pic_image_view);
+            attachFileBtn = findViewById(R.id.attach_file_btn);
+            /***gemini - fim***/
+
+            Log.d("ChatActivity", "Views inicializadas com sucesso");
+
+            backBtn.setOnClickListener((v) -> {
+                onBackPressed();
+            });
+
+            // Lógica para diferenciar chat de grupo e individual
+            Log.d("ChatActivity", "Obtendo dados do Intent");
+            chatroomModel = AndroidUtil.getChatroomModelFromIntent(getIntent());
+            Log.d("ChatActivity", "ChatroomModel obtido: " + (chatroomModel != null ? "sucesso" : "null"));
+
+            if (chatroomModel != null && chatroomModel.isGroupChat()) {
+                // É UM GRUPO
+                Log.d("ChatActivity", "Configurando chat de grupo");
+                chatroomId = chatroomModel.getChatroomId();
+                otherUsername.setText(chatroomModel.getGroupName());
+
+                if(chatroomModel.getGroupIcon() != null){
+                    FirebaseUtil.getGroupIconStorageRef(chatroomModel.getChatroomId()).getDownloadUrl()
+                            .addOnCompleteListener(t -> {
+                                if (t.isSuccessful()) {
+                                    Uri uri = t.getResult();
+                                    AndroidUtil.setProfilePic(this, uri, imageView);
+                                }
+                            });
+                }
+            } else {
+                // É UM CHAT 1-PARA-1
+                Log.d("ChatActivity", "Configurando chat individual");
+                otherUser = AndroidUtil.getUserModelFromIntent(getIntent());
+                Log.d("ChatActivity", "UserModel obtido: " + (otherUser != null ? "sucesso" : "null"));
+
+                if (otherUser != null && otherUser.getUserId() != null) {
+                    chatroomId = FirebaseUtil.getChatroomId(FirebaseUtil.currentUserId(), otherUser.getUserId());
+                    otherUsername.setText(otherUser.getUsername());
+                    Log.d("ChatActivity", "ChatroomId gerado: " + chatroomId);
+
+                    FirebaseUtil.getOtherProfilePicStorageRef(otherUser.getUserId()).getDownloadUrl()
+                            .addOnCompleteListener(t -> {
+                                if (t.isSuccessful()) {
+                                    Uri uri = t.getResult();
+                                    AndroidUtil.setProfilePic(this, uri, imageView);
+                                }
+                            });
+                } else {
+                    Log.e("ChatActivity", "Erro: UserModel ou userId é null");
+                    AndroidUtil.showToast(this, "Erro ao carregar dados do usuário");
+                    finish();
+                    return;
+                }
+            }
+
+            sendMessageBtn.setOnClickListener((v -> {
+                String message = messageInput.getText().toString().trim();
+                if (message.isEmpty())
+                    return;
+                sendMessageToUser(message);
+            }));
+
+            attachFileBtn.setOnClickListener(v -> {
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("image/*");
+                imagePickerLauncher.launch(intent);
+            });
+
+            Log.d("ChatActivity", "Chamando getOrCreateChatroom");
+            getOrCreateChatroom();
+            Log.d("ChatActivity", "Chamando setupChatRecyclerView");
+            setupChatRecyclerView();
+            Log.d("ChatActivity", "onCreate concluído com sucesso");
+
+        } catch (Exception e) {
+            Log.e("ChatActivity", "Erro no onCreate: " + e.getMessage(), e);
+            AndroidUtil.showToast(this, "Erro ao inicializar chat: " + e.getMessage());
+            finish();
         }
-
-        sendMessageBtn.setOnClickListener((v -> {
-            String message = messageInput.getText().toString().trim();
-            if (message.isEmpty())
-                return;
-            sendMessageToUser(message);
-        }));
-
-        attachFileBtn.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.setType("image/*");
-            imagePickerLauncher.launch(intent);
-        });
-
-        getOrCreateChatroom();
-        setupChatRecyclerView();
     }
 
 
@@ -171,25 +198,41 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     void setupChatRecyclerView() {
-        Query query = FirebaseUtil.getChatroomMessageReference(chatroomId)
-                .orderBy("timestamp", Query.Direction.DESCENDING);
+        try {
+            Log.d("ChatActivity", "setupChatRecyclerView iniciado");
+            Log.d("ChatActivity", "chatroomId: " + chatroomId);
 
-        FirestoreRecyclerOptions<ChatMessageModel> options = new FirestoreRecyclerOptions.Builder<ChatMessageModel>()
-                .setQuery(query, ChatMessageModel.class).build();
-
-        adapter = new ChatRecyclerAdapter(options, getApplicationContext());
-        LinearLayoutManager manager = new LinearLayoutManager(this);
-        manager.setReverseLayout(true);
-        recyclerView.setLayoutManager(manager);
-        recyclerView.setAdapter(adapter);
-        adapter.startListening();
-        adapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
-            @Override
-            public void onItemRangeInserted(int positionStart, int itemCount) {
-                super.onItemRangeInserted(positionStart, itemCount);
-                recyclerView.smoothScrollToPosition(0);
+            if (chatroomId == null || chatroomId.isEmpty()) {
+                Log.e("ChatActivity", "Erro: chatroomId é null ou vazio");
+                AndroidUtil.showToast(this, "Erro: ID do chat inválido");
+                return;
             }
-        });
+
+            Query query = FirebaseUtil.getChatroomMessageReference(chatroomId)
+                    .orderBy("timestamp", Query.Direction.DESCENDING);
+
+            FirestoreRecyclerOptions<ChatMessageModel> options = new FirestoreRecyclerOptions.Builder<ChatMessageModel>()
+                    .setQuery(query, ChatMessageModel.class).build();
+
+            adapter = new ChatRecyclerAdapter(options, getApplicationContext());
+            LinearLayoutManager manager = new LinearLayoutManager(this);
+            manager.setReverseLayout(true);
+            recyclerView.setLayoutManager(manager);
+            recyclerView.setAdapter(adapter);
+            adapter.startListening();
+            adapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+                @Override
+                public void onItemRangeInserted(int positionStart, int itemCount) {
+                    super.onItemRangeInserted(positionStart, itemCount);
+                    recyclerView.smoothScrollToPosition(0);
+                }
+            });
+
+            Log.d("ChatActivity", "setupChatRecyclerView concluído com sucesso");
+        } catch (Exception e) {
+            Log.e("ChatActivity", "Erro em setupChatRecyclerView: " + e.getMessage(), e);
+            AndroidUtil.showToast(this, "Erro ao configurar lista de mensagens: " + e.getMessage());
+        }
     }
 
     void sendMessageToUser(String message) {
@@ -289,15 +332,47 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     void getOrCreateChatroom() {
-        if (chatroomModel == null) {
-            chatroomModel = new ChatroomModel(
-                    chatroomId,
-                    Arrays.asList(FirebaseUtil.currentUserId(), otherUser.getUserId()),
-                    Timestamp.now(),
-                    ""
-            );
+        try {
+            Log.d("ChatActivity", "getOrCreateChatroom iniciado");
+            Log.d("ChatActivity", "chatroomModel: " + (chatroomModel != null ? "existe" : "null"));
+            Log.d("ChatActivity", "chatroomId: " + chatroomId);
+            Log.d("ChatActivity", "otherUser: " + (otherUser != null ? "existe" : "null"));
+
+            if (chatroomModel == null) {
+                Log.d("ChatActivity", "Criando novo ChatroomModel");
+                if (otherUser != null && otherUser.getUserId() != null) {
+                    chatroomModel = new ChatroomModel(
+                            chatroomId,
+                            Arrays.asList(FirebaseUtil.currentUserId(), otherUser.getUserId()),
+                            Timestamp.now(),
+                            ""
+                    );
+                    Log.d("ChatActivity", "ChatroomModel criado com sucesso");
+                } else {
+                    Log.e("ChatActivity", "Erro: otherUser ou userId é null");
+                    AndroidUtil.showToast(this, "Erro: dados do usuário inválidos");
+                    return;
+                }
+            }
+
+            if (chatroomId != null && !chatroomId.isEmpty()) {
+                Log.d("ChatActivity", "Salvando chatroom no Firestore");
+                FirebaseUtil.getChatroomReference(chatroomId).set(chatroomModel, SetOptions.merge())
+                        .addOnSuccessListener(aVoid -> {
+                            Log.d("ChatActivity", "Chatroom salvo no Firestore com sucesso");
+                        })
+                        .addOnFailureListener(e -> {
+                            Log.e("ChatActivity", "Erro ao salvar chatroom: " + e.getMessage());
+                            AndroidUtil.showToast(this, "Erro ao salvar chatroom");
+                        });
+            } else {
+                Log.e("ChatActivity", "Erro: chatroomId é null ou vazio");
+                AndroidUtil.showToast(this, "Erro: ID do chat inválido");
+            }
+        } catch (Exception e) {
+            Log.e("ChatActivity", "Erro em getOrCreateChatroom: " + e.getMessage(), e);
+            AndroidUtil.showToast(this, "Erro ao configurar chatroom: " + e.getMessage());
         }
-        FirebaseUtil.getChatroomReference(chatroomId).set(chatroomModel, SetOptions.merge());
     }
 
     void markMessagesAsRead() {
@@ -316,7 +391,7 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
 
-        // Notificações agora são automáticas via LocalNotificationService
+    // Notificações agora são automáticas via LocalNotificationService
     // Não precisamos mais enviar manualmente
     void callApi(JSONObject jsonObject){
         //...
